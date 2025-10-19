@@ -2,78 +2,56 @@ import streamlit as st
 import pandas as pd
 import os
 
-# 📁 Load the latest CSV file from the data folder
-def get_latest_csv():
-    data_dir = "data"
-    files = [f for f in os.listdir(data_dir) if f.startswith("pearl_scores_") and f.endswith(".csv")]
-    if not files:
-        return None
-    files.sort(reverse=True)
-    return os.path.join(data_dir, files[0])
+st.set_page_config(page_title="Pearl Finder", layout="wide")
 
-# 🔄 Load data
-latest_file = get_latest_csv()
-if latest_file:
-    @st.cache_data
-    def load_data(file_path):
-        return pd.read_csv(file_path)
+# 📦 Load latest data with caching
+@st.cache_data
+def load_latest_data():
+    data_folder = "data"
+    files = sorted([f for f in os.listdir(data_folder) if f.endswith(".csv")])
+    latest_file = os.path.join(data_folder, files[-1])
+    return pd.read_csv(latest_file)
 
-    df = load_data(latest_file)
+df = load_latest_data()
 
+# 🧮 Calculate sector averages
+sector_avg = df.groupby("Sector")["Pearl Score"].mean().reset_index()
+df = df.merge(sector_avg, on="Sector", suffixes=("", "_SectorAvg"))
+df["Above Sector Avg"] = df["Pearl Score"] > df["Pearl Score_SectorAvg"]
 
+# 🔍 Identify top 3 performers per sector
+top_by_sector = df.groupby("Sector").apply(lambda x: x.nlargest(3, "Pearl Score")).reset_index(drop=True)
 
-    st.set_page_config(page_title="Pearl Finder Dashboard", layout="wide")
-    st.title("📈 Pearl Finder: Sector-Aware Screener")
-    st.caption(f"📆 Showing data from: {os.path.basename(latest_file).replace('pearl_scores_', '').replace('.csv', '')}")
+# 💎 Detect outliers (Hidden Gems)
+threshold = df["Pearl Score"].quantile(0.95)
+hidden_gems = df[df["Pearl Score"] > threshold]
 
-    # 📌 Pearl Score Formula
-    st.markdown("### 🧮 Pearl Score Formula")
-    st.latex(r"\text{Pearl Score} = \left( \frac{\text{EPS}}{\text{PE}} \right) \times 100")
+# 🎨 Dashboard layout
+st.title("📈 Pearl Finder: Sector-Aware Stock Screener")
+st.markdown("This dashboard ranks stocks using the Pearl Score and highlights sector insights.")
 
-    # 🔍 Filter by EPS and PE
-    st.subheader("🔎 Filter Stocks by EPS and PE")
-    col1, col2 = st.columns(2)
-    with col1:
-        eps_min = st.number_input("Minimum EPS", min_value=0.0, value=1.0, format="%.2f")
-    with col2:
-        pe_max = st.number_input("Maximum PE", min_value=0.0, value=60.0, format="%.2f")
+tabs = st.tabs(["Top 50 Overall", "Top by Sector", "Hidden Gems", "Sector Averages"])
 
-    # Apply filters
-    filtered_df = df[
-        (df["EPS"] >= eps_min) &
-        (df["PE"] <= pe_max)
-    ]
+with tabs[0]:
+    st.subheader("🏆 Top 50 Stocks by Pearl Score")
+    top_50 = df.sort_values("Pearl Score", ascending=False).head(50)
+    st.dataframe(top_50, use_container_width=True)
 
-    # 🏭 Sector-level Pearl Score
-    st.subheader("🏭 Average Pearl Score by Sector")
-    sector_scores = filtered_df.groupby("Sector")["Pearl Score"].mean().sort_values(ascending=False)
-    st.bar_chart(sector_scores)
+with tabs[1]:
+    st.subheader("🥇 Top 3 Performers per Sector")
+    st.dataframe(top_by_sector, use_container_width=True)
 
-    # 🏆 Top 50 stocks from high-scoring sectors
-    st.subheader("🏆 Top 50 Stocks from High-Scoring Sectors")
-    top_df = filtered_df.sort_values(by="Pearl Score", ascending=False).head(50)
-    columns_to_show = ["Name", "Ticker", "Pearl Score", "EPS", "PE", "Sector", "Industry"]
-    chunks = [top_df.iloc[i:i+10] for i in range(0, 50, 10)]
+with tabs[2]:
+    st.subheader("💎 Hidden Gems (Top 5%)")
+    st.dataframe(hidden_gems, use_container_width=True)
 
-    for i, chunk in enumerate(chunks):
-        st.markdown(f"### 🔹 Stocks {i*10+1}–{i*10+10}")
-        st.dataframe(chunk[columns_to_show])
+with tabs[3]:
+    st.subheader("📊 Sector Average Pearl Scores")
+    st.dataframe(sector_avg, use_container_width=True)
 
-    # 📋 Metrics View for Top 10
-    st.subheader("📋 Metrics for Top 10 Stocks")
-    chart_df = top_df.head(10)
-    for _, row in chart_df.iterrows():
-        with st.expander(f"{row['Name']} ({row['Ticker']})"):
-            col1, col2 = st.columns(2)
-            with col1:
-                st.metric("Pearl Score", row["Pearl Score"])
-                st.metric("EPS", row["EPS"])
-                st.metric("PE", row["PE"])
-            with col2:
-                st.write(f"🏭 Sector: {row['Sector']}")
-                st.write(f"🏢 Industry: {row['Industry']}")
+# 📥 Download filtered data
+csv = df.to_csv(index=False).encode("utf-8")
+st.download_button("Download Full Data as CSV", csv, "pearl_scores.csv", "text/csv")
 
-    # 📥 Download filtered top 50
-    st.download_button("📥 Download Filtered Top 50 CSV", top_df.to_csv(index=False), "filtered_top_50.csv", "text/csv")
-else:
-    st.warning("No weekly CSV found in the data folder. Please run refresh.py or wait for GitHub Actions to update.")
+st.markdown("---")
+st.caption("Built by Sangbum Kim • Pearl Score = (EPS / PE) × 100")
