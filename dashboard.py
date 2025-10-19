@@ -14,7 +14,14 @@ def get_latest_csv():
 # 🔄 Load data
 latest_file = get_latest_csv()
 if latest_file:
-    df = pd.read_csv(latest_file)
+    @st.cache_data
+    def load_data(file_path):
+        return pd.read_csv(file_path)
+
+    df = load_data(latest_file)
+
+
+
     st.set_page_config(page_title="Pearl Finder Dashboard", layout="wide")
     st.title("📈 Pearl Finder: Sector-Aware Screener")
     st.caption(f"📆 Showing data from: {os.path.basename(latest_file).replace('pearl_scores_', '').replace('.csv', '')}")
