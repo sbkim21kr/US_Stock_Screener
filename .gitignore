@@ -1,0 +1,10 @@
+# uv virtual environment
+.venv/
+
+# Streamlit logs and cache
+.streamlit/
+__pycache__/
+
+*.pyc
+*.log
+.DS_Store
