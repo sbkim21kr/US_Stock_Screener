@@ -3,55 +3,43 @@ import pandas as pd
 from datetime import datetime
 import os
 
-# 📁 Load tickers from tickers.csv
-def load_tickers():
-    try:
-        df = pd.read_csv("tickers.csv")
-        return df["Ticker"].dropna().tolist()
-    except Exception as e:
-        print(f"Error loading tickers.csv: {e}")
-        return []
-
-# 📊 Define Pearl Score logic
+# 🧮 Pearl Score formula
 def calculate_pearl_score(eps, pe):
-    if pd.isna(eps) or pd.isna(pe) or pe == 0:
-        return 0
-    return round((eps / pe) * 10, 2)
+    return round((eps / pe) * 100, 2) if pe else 0
 
-# 📥 Fetch stock data
-def fetch_stock_data(tickers):
-    data = []
-    for ticker in tickers:
-        try:
-            stock = yf.Ticker(ticker)
-            info = stock.info
-            eps = info.get("trailingEps")
-            pe = info.get("trailingPE")
-            sector = info.get("sector", "N/A")
-            score = calculate_pearl_score(eps, pe)
-            data.append({
-                "Ticker": ticker,
-                "Sector": sector,
-                "EPS": eps,
-                "PE": pe,
-                "Pearl Score": score
-            })
-        except Exception as e:
-            print(f"Error fetching {ticker}: {e}")
-    return pd.DataFrame(data)
+# 📥 Load tickers from tickers.csv
+def get_tickers_from_csv():
+    return pd.read_csv("tickers.csv")["Symbol"].dropna().tolist()
 
-# 🗂️ Ensure data folder exists
+# 📊 Collect data
+tickers = get_tickers_from_csv()
+data = []
+
+for ticker in tickers:
+    try:
+        info = yf.Ticker(ticker).info
+        eps = info.get("trailingEps", 0)
+        pe = info.get("trailingPE", 0)
+        score = calculate_pearl_score(eps, pe)
+        name = info.get("shortName", ticker)
+        sector = info.get("sector", "Unknown")
+        industry = info.get("industry", "Unknown")
+
+        data.append({
+            "Ticker": ticker,
+            "Name": name,
+            "EPS": eps,
+            "PE": pe,
+            "Pearl Score": score,
+            "Sector": sector,
+            "Industry": industry
+        })
+    except Exception as e:
+        print(f"⚠️ Error fetching {ticker}: {e}")
+
+# 🗂 Save to CSV
+df = pd.DataFrame(data)
+today = datetime.today().strftime("%Y-%m-%d")
 os.makedirs("data", exist_ok=True)
-
-# 🗓️ Generate filename
-today = datetime.utcnow().strftime("%Y-%m-%d")
-filename = f"data/pearl_scores_{today}.csv"
-
-# 🚀 Run refresh
-tickers = load_tickers()
-if tickers:
-    df = fetch_stock_data(tickers)
-    df.to_csv(filename, index=False)
-    print(f"✅ Saved: {filename}")
-else:
-    print("⚠️ No tickers found in tickers.csv")
+df.to_csv(f"data/pearl_scores_{today}.csv", index=False)
+print(f"✅ Saved: data/pearl_scores_{today}.csv")

@@ -33,6 +33,9 @@ jobs:
         run: |
           git config --global user.name "sbkim21kr"
           git config --global user.email "sbkim21kr@users.noreply.github.com"
-          git add pearl_scores_*.csv
-          git commit -m "Weekly refresh: $(date -u)" || echo "No changes to commit"
-          git push
+          if ls data/pearl_scores_*.csv 1> /dev/null 2>&1; then
+            git add data/pearl_scores_*.csv
+            git commit -m "Weekly refresh: $(date -u)" || echo "No changes to commit"
+            git push
+          else
+            echo "⚠️ No CSV file found to commit"
