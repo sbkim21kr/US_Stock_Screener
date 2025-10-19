@@ -5,6 +5,9 @@ on:
     - cron: '0 0 * * 0'  # Runs every Sunday at midnight UTC
   workflow_dispatch:     # Allows manual triggering
 
+permissions:
+  contents: write
+
 jobs:
   refresh:
     runs-on: ubuntu-latest
@@ -31,5 +34,5 @@ jobs:
           git config --global user.name "sbkim21kr"
           git config --global user.email "sbkim21kr@users.noreply.github.com"
           git add pearl_scores_*.csv
-          git commit -m "Weekly refresh: $(date)" || echo "No changes to commit"
-          git push https://sbkim21kr:${{ secrets.GH_TOKEN }}@github.com/sbkim21kr/US_Stock_Screener.git HEAD:main
+          git commit -m "Weekly refresh: $(date -u)" || echo "No changes to commit"
+          git push
