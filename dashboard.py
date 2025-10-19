@@ -11,6 +11,7 @@ def get_latest_csv():
     files.sort(reverse=True)
     return files[0]
 
+# 🔄 Load data
 latest_file = get_latest_csv()
 if latest_file:
     df = pd.read_csv(latest_file)
@@ -29,7 +30,12 @@ if latest_file:
     else:
         filtered_df = df
 
-    # 📊 Metrics View
+    # 📈 Top Pearl Scores
+    st.subheader("🏆 Top 10 Pearl Scores")
+    top_df = df.sort_values(by="Pearl Score", ascending=False).head(10)
+    st.bar_chart(top_df.set_index("Ticker")["Pearl Score"])
+
+    # 📋 Metrics View
     st.subheader("📋 Metrics for Selected Stocks")
     for _, row in filtered_df.iterrows():
         with st.expander(f"{row['Ticker']}"):
@@ -40,5 +46,8 @@ if latest_file:
                 st.metric("PE", row["PE"])
             with col2:
                 st.write("📁 Historical data coming soon...")
+
+    # 📥 Download filtered data
+    st.download_button("📥 Download filtered CSV", filtered_df.to_csv(index=False), "filtered_stocks.csv", "text/csv")
 else:
     st.warning("No weekly CSV found. Please run refresh.py or wait for GitHub Actions to update.")
