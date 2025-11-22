@@ -1,9 +1,9 @@
 name: Weekly Auto Refresh
 
-on:
-  schedule:
-    - cron: '0 0 * * 0'  # Runs every Sunday at midnight UTC
-  workflow_dispatch:     # Allows manual triggering
+# on:
+#   schedule:
+#     - cron: '0 0 * * 0'  # Runs every Sunday at midnight UTC
+#   workflow_dispatch:     # Allows manual triggering
 
 permissions:
   contents: write
